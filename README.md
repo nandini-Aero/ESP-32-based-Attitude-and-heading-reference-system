@@ -1,48 +1,26 @@
-# ESP32 Attitude & Heading Reference System (AHRS) 🚀
+# ESP32 ADAHRS (Air Data, Attitude, and Heading Reference System) ✈️
 
-A lightweight, WiFi-enabled AHRS and flight telemetry system built on the ESP32. This project fuses data from an MPU6050 IMU and a BMP180 barometer using a Kalman filter and complementary filters to provide accurate real-time altitude, vertical speed, and spatial orientation.
+An advanced firmware stack transforming an ESP32 into a fully functional ADAHRS. This project combines orientation tracking with external environmental data, utilizing high-precision sensors for applications in experimental flight mechanics, aerodynamics, and robotics.
+
+## Sensor Architecture
+* **MPU6050:** 6-DOF IMU for attitude (roll, pitch, yaw) and 3D kinematics calculation.
+* **BMP388:** Next-generation barometer providing highly accurate, low-noise altitude measurements for the vertical Kalman filter.
+* **BME680:** Environmental sensor capturing localized air data (temperature, humidity, and VOC gas resistance) to monitor external atmospheric states.
 
 ## Features
-* **Sensor Fusion:** Utilizes a custom 1D Kalman filter for altitude/vertical speed and a complementary filter for roll/pitch estimation.
-* **Wireless Telemetry:** Built-in HTTP web server serving a responsive dashboard.
-* **RESTful JSON API:** Access live telemetry data over your local network.
-* **Auto-Calibration:** Calculates and removes gyroscope bias on startup.
+* **Custom Sensor Fusion:** 1D Kalman filter for vertical speed/altitude, and Complementary filtering for spatial orientation.
+* **Kinematic Velocity Tracking:** Calculates 3D linear acceleration and estimates $V_x$ and $V_y$ via dead reckoning (with leaky integration for drift mitigation).
+* **Asynchronous Processing:** Multi-rate sensor polling ensures the BME680's gas heating mechanism does not block the 20Hz IMU control loop.
+* **Wireless Dashboard:** Built-in web server displaying real-time telemetry over local WiFi.
 
-## Hardware Requirements
-* **Microcontroller:** ESP32 Development Board
-* **IMU:** MPU6050 (Accelerometer + Gyroscope)
-* **Barometer:** BMP180 or BMP085
-* **Connections:** Standard I2C wiring.
+## Dependencies
+* `Adafruit_MPU6050`
+* `Adafruit_BMP3XX`
+* `Adafruit_BME680`
+* `Adafruit_Sensor`
 
-## Wiring Diagram
-| ESP32 Pin | Sensor Pin | Description |
-| :--- | :--- | :--- |
-| 3V3 | VCC | 3.3V Power |
-| GND | GND | Ground |
-| GPIO 21 | SDA | I2C Data |
-| GPIO 22 | SCL | I2C Clock |
-
-#Install Dependencies: Open the Arduino IDE and install the following libraries via the Library Manager:
-
-Adafruit MPU6050
-
-Adafruit BMP085
-
-Adafruit Unified Sensor
-
-Configure WiFi: Update the SSID and password in the main sketch:
-
-C++
-const char* ssid     = "YOUR_SSID";
-const char* password = "YOUR_PASSWORD";
-Flash to ESP32: Compile and upload the code to your board.
-
-Calibrate: Leave the board perfectly still on startup for 2-3 seconds while it calibrates the gyroscope.
-
-View Dashboard: Open the Serial Monitor to find the ESP32's local IP address, then navigate to that IP in your web browser.
-
-Author
+## Author
 Nandini Sanavada
 
-License
-This project is licensed under the MIT License - see the LICENSE file for details.
+## License
+MIT License
