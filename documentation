@@ -1,1 +1,55 @@
-ADAHRS Technical DocumentationThis document outlines the software architecture, spatial mathematics, and kinematics implemented in the ESP32 ADAHRS project.1. System OverviewAn ADAHRS expands upon traditional attitude tracking by introducing "Air Data"—crucial environmental parameters for aerodynamic analysis.High-Speed Loop (20 Hz): The MPU6050 and BMP388 are polled continuously. The BMP388's high output data rate (ODR) allows for tight altitude tracking without the throttling previously required by the BMP180.Low-Speed Loop (1 Hz): The BME680 requires a heating element phase to measure gas resistance. To prevent this from blocking the integration loop and causing kinematic drift, it is polled asynchronously once per second.2. 3D Kinematics and Dead Reckoning2.1 Body to Earth Frame TransformationTo calculate velocities, the raw acceleration from the MPU6050 (which is in the sensor's Body Frame) must be rotated into the Earth (Inertial) Frame.We use a standard Z-up rotation matrix derived from the estimated Roll ($\phi$), Pitch ($\theta$), and Yaw ($\psi$). Let $C = \cos$ and $S = \sin$.The 3D linear acceleration in the Earth frame ($A_{world}$) is calculated as:$$a_{x,world} = (\cos\theta\cos\psi)a_x + (\sin\phi\sin\theta\cos\psi - \cos\phi\sin\psi)a_y + (\cos\phi\sin\theta\cos\psi + \sin\phi\sin\psi)a_z$$$$a_{y,world} = (\cos\theta\sin\psi)a_x + (\sin\phi\sin\theta\sin\psi + \cos\phi\cos\psi)a_y + (\cos\phi\sin\theta\sin\psi - \sin\phi\cos\psi)a_z$$$$a_{z,world} = (-\sin\theta)a_x + (\sin\phi\cos\theta)a_y + (\cos\phi\cos\theta)a_z$$Gravity ($G = 9.81$) is then subtracted from $a_{z,world}$ to isolate the vertical linear acceleration.2.2 The "Leaky Integrator" Velocity SolutionIntegrating acceleration to find velocity is known as dead reckoning:$$V_{current} = V_{previous} + A_{world} \cdot dt$$The Limitation of MEMS: Consumer-grade IMUs contain microscopic white noise and static bias. When integrated, this noise accumulates quadratically, causing calculated velocity to drift to hundreds of meters per second within minutes. In a real aircraft, this is corrected via GPS or Pitot-static tubes.To make the data usable for short-duration movements, this firmware implements a Leaky Integrator (damping factor) for the X and Y axes:$$V_{x} = (V_{x} + a_{x,world} \cdot dt) \times 0.99$$This artificial decay ensures that when the system stops accelerating, the estimated velocity smoothly bleeds back to zero, preventing runaway drift.3. Web API EndpointsGET /dataReturns the complete ADAHRS state vector via JSON.Response Example:
+# ADAHRS Technical Documentation
+
+This document outlines the software architecture, spatial mathematics, and kinematics implemented in the ESP32 ADAHRS project.
+
+## 1. System Overview
+
+An ADAHRS expands upon traditional attitude tracking by introducing "Air Data"—crucial environmental parameters for aerodynamic analysis. 
+* **High-Speed Loop (20 Hz):** The MPU6050 and BMP388 are polled continuously. The BMP388's high output data rate (ODR) allows for tight altitude tracking without the throttling previously required by the BMP180.
+* **Low-Speed Loop (1 Hz):** The BME680 requires a heating element phase to measure gas resistance. To prevent this from blocking the integration loop and causing kinematic drift, it is polled asynchronously once per second.
+
+## 2. 3D Kinematics and Dead Reckoning
+
+### 2.1 Body to Earth Frame Transformation
+To calculate velocities, the raw acceleration from the MPU6050 (which is in the sensor's Body Frame) must be rotated into the Earth (Inertial) Frame. 
+
+We use a standard Z-up rotation matrix derived from the estimated Roll ($\phi$), Pitch ($\theta$), and Yaw ($\psi$). Let $C = \cos$ and $S = \sin$.
+
+The 3D linear acceleration in the Earth frame ($A_{world}$) is calculated as:
+$$a_{x,world} = (\cos\theta\cos\psi)a_x + (\sin\phi\sin\theta\cos\psi - \cos\phi\sin\psi)a_y + (\cos\phi\sin\theta\cos\psi + \sin\phi\sin\psi)a_z$$
+
+$$a_{y,world} = (\cos\theta\sin\psi)a_x + (\sin\phi\sin\theta\sin\psi + \cos\phi\cos\psi)a_y + (\cos\phi\sin\theta\sin\psi - \sin\phi\cos\psi)a_z$$
+
+$$a_{z,world} = (-\sin\theta)a_x + (\sin\phi\cos\theta)a_y + (\cos\phi\cos\theta)a_z$$
+
+Gravity ($G = 9.81$) is then subtracted from $a_{z,world}$ to isolate the vertical linear acceleration.
+
+### 2.2 The "Leaky Integrator" Velocity Solution
+Integrating acceleration to find velocity is known as *dead reckoning*:
+$$V_{current} = V_{previous} + A_{world} \cdot dt$$
+
+**The Limitation of MEMS:** Consumer-grade IMUs contain microscopic white noise and static bias. When integrated, this noise accumulates quadratically, causing calculated velocity to drift to hundreds of meters per second within minutes. In a real aircraft, this is corrected via GPS or Pitot-static tubes.
+
+To make the data usable for short-duration movements, this firmware implements a **Leaky Integrator** (damping factor) for the X and Y axes:
+$$V_{x} = (V_{x} + a_{x,world} \cdot dt) \times 0.99$$
+This artificial decay ensures that when the system stops accelerating, the estimated velocity smoothly bleeds back to zero, preventing runaway drift.
+
+## 3. Web API Endpoints
+
+### `GET /data`
+Returns the complete ADAHRS state vector via JSON.
+
+**Response Example:**
+```json
+{
+  "alt": 142.10,
+  "vz": 0.05,
+  "vx": 1.20,
+  "vy": -0.45,
+  "roll": 2.40,
+  "pitch": -1.10,
+  "yaw": 88.20,
+  "temp": 24.50,
+  "hum": 45.20,
+  "gas": 125.40
+}
