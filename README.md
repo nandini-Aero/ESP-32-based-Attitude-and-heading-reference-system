@@ -22,5 +22,3 @@ An advanced firmware stack transforming an ESP32 into a fully functional ADAHRS.
 ## Author
 Nandini Sanavada
 
-## License
-MIT License
